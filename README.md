@@ -1,7 +1,7 @@
 # Navigatio Mmesh System With Pathfinding
 
 This is the first step of my custom **Navigation Mesh** system, which also includes a **Pathfinding algorithm**. For now, it doesn’t have **heightfields**, but my next goal is to implement it.
-<img width="2548" height="1387" alt="bothpath" src="https://github.com/user-attachments/assets/873549cc-d569-426b-932b-6c14a28bb2dd" />
+<img width="2548" height="1387" alt="bothpath" src="https://github.com/user-attachments/assets/8a39fe28-766e-4ef3-872b-8a5ad703af32" />
 - For cloning repo `git clone https://github.com/haktan313/NavigationmeshSystem.git`
 - Then run the Generation.bat file
 
@@ -14,8 +14,8 @@ This is the first step of my custom **Navigation Mesh** system, which also inclu
 ## 📸 Screenshots
 | NavMesh (Before Optimization) | NavMesh (After Hertel–Mehlhorn Optimization) |
 |--------|-------------|
-| <img width="2554" height="1384" alt="triangleswithsmoothpath" src="https://github.com/user-attachments/assets/e59d8700-b5f7-47a3-8ff4-22fdf85169db" /> | <img width="2549" height="1385" alt="justnavmesh" src="https://github.com/user-attachments/assets/f356ffe0-7a74-4c8e-aa17-328be0f619aa" /> |
+| <img width="2554" height="1384" alt="triangleswithsmoothpath" src="https://github.com/user-attachments/assets/945f73cf-c581-4436-bd6f-a0ec5a21bd29" /> | <img width="2549" height="1385" alt="justnavmesh" src="https://github.com/user-attachments/assets/3364a358-0c86-42a8-891f-77c5656612d0" /> |
 
 | Normal Path | Smoothed Path (Funnel Algorithm) |
 |--------|-------------|
-| <img width="2549" height="1391" alt="Screenshot 2025-11-10 113245" src="https://github.com/user-attachments/assets/5fdaf817-ddbc-41c0-9af3-7eaf37117d06" /> | <img width="2542" height="1377" alt="image" src="https://github.com/user-attachments/assets/10265a99-94a0-4b15-bc9e-76d16c6596d7" /> |
+| <img width="2549" height="1391" alt="Screenshot 2025-11-10 113245" src="https://github.com/user-attachments/assets/7408df89-b97d-414f-a9bf-2bf8a7f2919c" /> | <img width="2542" height="1377" alt="Screenshot 2025-11-10 113400" src="https://github.com/user-attachments/assets/c4b90997-5b73-450d-b58f-4651101f0ac1" /> |
