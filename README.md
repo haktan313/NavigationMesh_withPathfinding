@@ -1,4 +1,4 @@
-# Navigatio Mmesh System With Pathfinding
+# Navigation Mesh System With Pathfinding
 
 This is the first step of my custom **Navigation Mesh** system, which also includes a **Pathfinding algorithm**. For now, it doesn’t have **heightfields**, but my next goal is to implement it.
 <img width="2548" height="1387" alt="bothpath" src="https://github.com/user-attachments/assets/8a39fe28-766e-4ef3-872b-8a5ad703af32" />
