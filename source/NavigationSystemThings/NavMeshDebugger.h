@@ -1,10 +1,10 @@
 #pragma once
 #include <glm/vec3.hpp>
+
+#include "StructsForNavigationSystem.h"
 #include "Core/Camera.h"
 #include "Core/Scene.h"
 
-struct NavMeshTriangle;
-struct DrawDebugInfo;
 class NavMesh;
 
 class NavMeshDebugger
@@ -15,7 +15,9 @@ public:
     ~NavMeshDebugger();
     void CleanBuffers();
 
-    void RenderDebugTool(Shader* shader, Camera& camera, const Scene& scene, const DrawDebugInfo& debugInfo);
+    void RenderDebugTool(Shader* shader, Camera& camera, const Scene& scene, const DrawDebugInfo& debugInfo, NavBuildParams buildParams);
+    void RenderNavMeshBound(Shader* shader, const Scene& scene, const NavBuildParams& buildParams);
+    void RenderGrids(Shader* shader, const Scene& scene, const NavBuildParams& buildParams);
     
     void SetBorderVertices(const std::vector<glm::vec3>& borderVerts);
     void RenderBorder(Shader* shader);

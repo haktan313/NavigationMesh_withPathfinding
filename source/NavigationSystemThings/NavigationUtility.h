@@ -14,7 +14,7 @@ public:
     static int FindNodeIDByPosition(const glm::vec3& position, NavMesh& navMesh);
     static glm::vec3 GetNodeCenter(int nodeID, NavMesh& navMesh);
     static const std::vector<OptimizedEdge>& GetNodeNeighbors(int nodeID, NavMesh& navMesh);
-    
+
     static bool IsPointInTriangleXZ(const glm::vec3& position, const glm::vec3& a, const glm::vec3& b, const glm::vec3& c);
     static bool CanClipEar(int prevIndex, int earIndex, int nextIndex, const std::vector<glm::vec3>& vertices);
     static int FindOrCreateHalfEdgeVertexIndex(const glm::vec3& pos, std::vector<HalfEdgeVertex>& m_HalfEdgeVertices);
@@ -37,4 +37,6 @@ public:
     static void CreateHolesWithObstacles(const std::vector<glm::vec3>& obstacleSlice, std::vector<glm::vec3>& navMeshVerts3D, const NavBuildParams& buildParams);
 
     static std::vector<NavMeshOptimizedNode>& GetPathfindingNodes(NavMesh& navMesh);
+    
+    static bool TriBoxOverlap(const float boxcenter[3], const float boxhalfsize[3], const float triverts[3][3]);
 };

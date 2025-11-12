@@ -142,7 +142,7 @@ void NavMeshDebugger::CleanBuffers()
     m_SmoothedPathPointCount = 0;
 }
 
-void NavMeshDebugger::RenderDebugTool(Shader* shader, Camera& camera, const Scene& scene, const DrawDebugInfo& debugInfo)
+void NavMeshDebugger::RenderDebugTool(Shader* shader, Camera& camera, const Scene& scene, const DrawDebugInfo& debugInfo, NavBuildParams buildParams)
 {
     shader->Use();
     glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), 1280.0f/720.0f, 0.1f, 100.0f);
@@ -150,7 +150,11 @@ void NavMeshDebugger::RenderDebugTool(Shader* shader, Camera& camera, const Scen
     shader->SetMat4("projection", projection);
     shader->SetMat4("view", view);
     shader->SetMat4("model", glm::mat4(1.0f));
-    RenderStartEndMarkers(shader);
+    RenderNavMeshBound(shader, scene, buildParams);
+    if (!bNavMeshBuilt)
+        return;
+    RenderGrids(shader, scene, buildParams);
+    /*RenderStartEndMarkers(shader);
 
     if (debugInfo.bDrawBorder)
         RenderBorder(shader);
@@ -173,7 +177,74 @@ void NavMeshDebugger::RenderDebugTool(Shader* shader, Camera& camera, const Scen
     if (debugInfo.bDrawMainPath)
         RenderPath(shader);
     if (debugInfo.bDrawSmoothPath)
-        RenderSmoothedPath(shader);
+        RenderSmoothedPath(shader);*/
+}
+
+void NavMeshDebugger::RenderNavMeshBound(Shader* shader, const Scene& scene, const NavBuildParams& buildParams)
+{
+    if (buildParams.width > 0)
+    {
+        const MeshData* cubeMesh = scene.GetMesh("Cube");
+        if (cubeMesh)
+        {
+            glm::vec3 size = buildParams.maxCorner - buildParams.minCorner;
+            glm::vec3 center = (buildParams.minCorner + buildParams.maxCorner) * 0.5f;
+
+            glm::mat4 model = glm::mat4(1.0f);
+            model = glm::translate(model, center);
+            model = glm::scale(model, size);
+            shader->SetMat4("model", model);
+            shader->SetVec4("ourColor", glm::vec4(1.0f, 1.0f, 1.0f, 0.5f));
+            
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+            
+            glBindVertexArray(cubeMesh->VAO);
+            glDrawElements(GL_TRIANGLES, cubeMesh->indices.size(), GL_UNSIGNED_INT, 0);
+            
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+            glDisable(GL_BLEND);
+        }
+    }
+}
+
+void NavMeshDebugger::RenderGrids(Shader* shader, const Scene& scene, const NavBuildParams& buildParams)
+{
+    const MeshData* cubeMesh = scene.GetMesh("Cube");
+    if (!cubeMesh || buildParams.data.empty())
+        return;
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glBindVertexArray(cubeMesh->VAO);
+    for (int z = 0; z < buildParams.depth; ++z)
+    {
+        for (int y = 0; y < buildParams.height; ++y)
+        {
+            for (int x = 0; x < buildParams.width; ++x)
+            {
+                int index = x + z * buildParams.width + y * (buildParams.width * buildParams.depth);
+                bool isSolid = buildParams.data[index];
+
+                glm::vec3 pos = {
+                    buildParams.minCorner.x + (x + 0.5f) * buildParams.cellSize,
+                    buildParams.minCorner.y + (y + 0.5f) * buildParams.cellHeight,
+                    buildParams.minCorner.z + (z + 0.5f) * buildParams.cellSize
+                };
+                glm::mat4 model = glm::translate(glm::mat4(1.0f), pos);
+                model = glm::scale(model, glm::vec3(buildParams.cellSize, buildParams.cellHeight, buildParams.cellSize));
+                shader->SetMat4("model", model);
+
+                if (isSolid) 
+                    shader->SetVec4("ourColor", glm::vec4(1.0f, 0.0f, 0.0f, 0.3f)); // Red for solid
+                else 
+                    shader->SetVec4("ourColor", glm::vec4(0.0f, 1.0f, 0.0f, 0.03f)); // Green for empty
+                
+                glDrawElements(GL_TRIANGLES, cubeMesh->indices.size(), GL_UNSIGNED_INT, 0);
+            }
+        }
+    }
+    glDisable(GL_BLEND);
 }
 
 void NavMeshDebugger::SetBorderVertices(const std::vector<glm::vec3>& borderVerts)

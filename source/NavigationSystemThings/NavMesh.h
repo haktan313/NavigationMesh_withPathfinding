@@ -19,6 +19,9 @@ public:
     ~NavMesh();
     
     void BuildNavMesh();
+    void BuildInputTriangles(const Scene& scene);
+    void VoxelizeInputTriangles();
+    void Rasterization();
     void RenderDebugTool(Shader* shader, Camera& camera, const Scene& scene);
     void SetStartEndMarkers(const glm::vec3& start, const glm::vec3& end);
     
@@ -36,6 +39,8 @@ private:
     
     void CreatePathfindingNodes(std::map<int, int>& faceIndexToNodeIndex, std::vector<std::vector<glm::vec3>>& mergedPolygonsForDebug);
     void FindNeighborsForPathfindingNodes(std::map<int, int>& faceIndexToNodeIndex);
+
+    std::vector<Triangle> m_InputTriangles;
     
     const Scene& m_Scene;
     NavMeshDebugger* m_NavMeshDebugger;

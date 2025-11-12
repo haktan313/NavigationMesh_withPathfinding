@@ -4,10 +4,18 @@
 
 struct NavBuildParams
 {
-    glm::vec3 origin = glm::vec3(-15.f, 0.4f, -15.f); // left bottom corner
-    glm::vec3 maxBounds = glm::vec3(15.f, 2.f, 15.f); // right top corner
+    glm::vec3 minCorner = glm::vec3(-15.f, 0.f, -15.f); // left bottom corner
+    glm::vec3 maxCorner = glm::vec3(15.f, 10.f, 15.f); // right top corner
     float agentRadius = 0.2f; // dont make it too large, one of the obstacles holes can overlap with others etc.
+    float agentHeight = 2.0f;
+    float cellSize = 1.f;
+    float cellHeight = 1.f;
+    float maxClimb = 0.9f;
+    float maxSlopeDeg = 45.0f;
+    int width, depth, height;
+    std::vector<bool> data; // true = walkable, false = not walkable
 };
+
 struct NavMeshTriangle
 {
     glm::vec3 verts[3];

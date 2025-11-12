@@ -34,8 +34,10 @@ void NavMesh::BuildNavMesh()
     
     m_NavMeshDebugger->CleanBuffers();
     m_NavMeshDebugger->bNavMeshBuilt = true;
+    BuildInputTriangles(m_Scene);
+    VoxelizeInputTriangles();
     
-    const float buildPlaneY = std::min(BuildParams.origin.y, BuildParams.maxBounds.y);
+    /*const float buildPlaneY = std::min(BuildParams.origin.y, BuildParams.maxBounds.y);
     std::vector<std::vector<glm::vec3>> obstacleSlices = NavigationUtility::GetSceneObstacleSlices(buildPlaneY, BuildParams, m_Scene); // getting obstacle slices depending on build plane Y which is Y position of navmesh
     NavigationUtility::SortObstaclesByMaxX(obstacleSlices);
     for (const auto& slice : obstacleSlices)
@@ -46,7 +48,137 @@ void NavMesh::BuildNavMesh()
     OptimizeEarClipping();// hertel mehlhorn
     SetStartEndMarkers(Start, End);
     if (m_NavMeshDebugger)
-        m_NavMeshDebugger->SetHoles(obstacleSlices);
+        m_NavMeshDebugger->SetHoles(obstacleSlices);*/
+}
+
+void NavMesh::BuildInputTriangles(const Scene& scene)
+{
+    m_InputTriangles.clear();
+    const auto& objects = scene.GetObjects();
+
+    for (const auto& obj : objects)
+    {
+        if (!obj.mesh)
+            continue;
+        const glm::mat4& modelMatrix = obj.modelMatrix;
+        const MeshData* mesh = obj.mesh;
+
+        for (size_t i = 0; i < mesh->indices.size() / 3; ++i)
+        {
+            unsigned int idx0 = mesh->indices[i * 3];
+            unsigned int idx1 = mesh->indices[i * 3 + 1];
+            unsigned int idx2 = mesh->indices[i * 3 + 2];
+
+            const Vec3f& local_v0 = mesh->vertices[idx0];
+            const Vec3f& local_v1 = mesh->vertices[idx1];
+            const Vec3f& local_v2 = mesh->vertices[idx2];
+
+            glm::vec4 world_v0 = modelMatrix * glm::vec4(local_v0.x, local_v0.y, local_v0.z, 1.0f);
+            glm::vec4 world_v1 = modelMatrix * glm::vec4(local_v1.x, local_v1.y, local_v1.z, 1.0f);
+            glm::vec4 world_v2 = modelMatrix * glm::vec4(local_v2.x, local_v2.y, local_v2.z, 1.0f);
+
+            Triangle tri;
+            tri.verts[0] = { world_v0.x, world_v0.y, world_v0.z };
+            tri.verts[1] = { world_v1.x, world_v1.y, world_v1.z };
+            tri.verts[2] = { world_v2.x, world_v2.y, world_v2.z };
+            m_InputTriangles.push_back(tri);
+        }
+    }
+}
+
+void NavMesh::VoxelizeInputTriangles()
+{
+    std::cout << "Voxelization step (placeholder)..." << std::endl;
+    if (m_InputTriangles.empty())
+    {
+        std::cout << "No input triangles to voxelize." << std::endl;
+        return;
+    }
+
+    if (BuildParams.minCorner.x >= BuildParams.maxCorner.x ||
+        BuildParams.minCorner.y >= BuildParams.maxCorner.y ||
+        BuildParams.minCorner.z >= BuildParams.maxCorner.z ||
+        BuildParams.cellSize <= 0.0f || BuildParams.cellHeight <= 0.0f)
+    {
+        std::cout << "Invalid voxel grid parameters." << std::endl;
+        return;
+    }
+    int totalVoxels = BuildParams.width * BuildParams.depth * BuildParams.height;
+    std::cout << "Voxel Grid Dimensions: " << BuildParams.width << " x " << BuildParams.depth << " x " << BuildParams.height << " = " << totalVoxels << " voxels." << std::endl;
+
+    Rasterization();
+}
+
+void NavMesh::Rasterization()
+{
+    int solidVoxels = 0;
+    for (const auto& tri : m_InputTriangles)
+    {
+        float triMin[3] = { tri.verts[0].x, tri.verts[0].y, tri.verts[0].z };
+        float triMax[3] = { tri.verts[0].x, tri.verts[0].y, tri.verts[0].z };
+        for (int i = 1; i < 3; ++i)
+        {
+            triMin[0] = std::min(triMin[0], tri.verts[i].x);
+            triMin[1] = std::min(triMin[1], tri.verts[i].y);
+            triMin[2] = std::min(triMin[2], tri.verts[i].z);
+            
+            triMax[0] = std::max(triMax[0], tri.verts[i].x);
+            triMax[1] = std::max(triMax[1], tri.verts[i].y);
+            triMax[2] = std::max(triMax[2], tri.verts[i].z);
+        }
+
+        int minX = (int)((triMin[0] - BuildParams.minCorner.x) / BuildParams.cellSize);
+        int minY = (int)((triMin[1] - BuildParams.minCorner.y) / BuildParams.cellHeight);
+        int minZ = (int)((triMin[2] - BuildParams.minCorner.z) / BuildParams.cellSize);
+        
+        int maxX = (int)((triMax[0] - BuildParams.minCorner.x) / BuildParams.cellSize);
+        int maxY = (int)((triMax[1] - BuildParams.minCorner.y) / BuildParams.cellHeight);
+        int maxZ = (int)((triMax[2] - BuildParams.minCorner.z) / BuildParams.cellSize);
+
+        minX = std::max(0, minX);
+        minY = std::max(0, minY);
+        minZ = std::max(0, minZ);
+
+        maxX = std::min(BuildParams.width - 1, maxX);
+        maxY = std::min(BuildParams.height - 1, maxY);
+        maxZ = std::min(BuildParams.depth - 1, maxZ);
+
+        for (int z = minZ; z <= maxZ; ++z)
+        {
+            for (int y = minY; y <= maxY; ++y)
+            {
+                for (int x = minX; x <= maxX; ++x)
+                {
+                    int index = x + z * BuildParams.width + y * BuildParams.width * BuildParams.depth;
+                    if (BuildParams.data[index])
+                        continue;
+
+                    float boxcenter[3] = {
+                        BuildParams.minCorner.x + (x + 0.5f) * BuildParams.cellSize,
+                        BuildParams.minCorner.y + (y + 0.5f) * BuildParams.cellHeight,
+                        BuildParams.minCorner.z + (z + 0.5f) * BuildParams.cellSize
+                    };
+                    float boxhalfsize[3] = {
+                        BuildParams.cellSize * 0.5f,
+                        BuildParams.cellHeight * 0.5f,
+                        BuildParams.cellSize * 0.5f
+                    };
+                    float triverts[3][3] = {
+                        { tri.verts[0].x, tri.verts[0].y, tri.verts[0].z },
+                        { tri.verts[1].x, tri.verts[1].y, tri.verts[1].z },
+                        { tri.verts[2].x, tri.verts[2].y, tri.verts[2].z }
+                    };
+
+                    if (NavigationUtility::TriBoxOverlap(boxcenter, boxhalfsize, triverts))
+                    {
+                        BuildParams.data[index] = true;
+                        solidVoxels++;
+                    }
+                }
+            }
+        }
+    }
+    std::cout << "Rasterization complete. Solid voxels: " << solidVoxels << std::endl;
 }
 
 //----- Render the debug tool -----
@@ -54,7 +186,7 @@ void NavMesh::BuildNavMesh()
 void NavMesh::RenderDebugTool(Shader* shader, Camera& camera, const Scene& scene)
 {
     if (m_NavMeshDebugger)
-        m_NavMeshDebugger->RenderDebugTool(shader, camera, scene, DebugInfo);
+        m_NavMeshDebugger->RenderDebugTool(shader, camera, scene, DebugInfo, BuildParams);
     
 }
 
@@ -64,6 +196,11 @@ void NavMesh::CreateDebugger()
         m_NavMeshDebugger = new NavMeshDebugger();
     if (m_NavMeshDebugger)
         SetStartEndMarkers(Start, End);
+    
+    BuildParams.depth = static_cast<int>((BuildParams.maxCorner.z - BuildParams.minCorner.z) / BuildParams.cellSize);
+    BuildParams.width = static_cast<int>((BuildParams.maxCorner.x - BuildParams.minCorner.x) / BuildParams.cellSize);
+    BuildParams.height = static_cast<int>((BuildParams.maxCorner.y - BuildParams.minCorner.y) / BuildParams.cellHeight);
+    BuildParams.data.resize(BuildParams.width * BuildParams.depth * BuildParams.height, false);
 }
 
 void NavMesh::SetStartEndMarkers(const glm::vec3& start, const glm::vec3& end)
@@ -93,8 +230,8 @@ void NavMesh::BuildBorderFromParams()
 {
     m_BorderVerts3D.clear();
     
-    glm::vec3 origin = BuildParams.origin;
-    glm::vec3 maxBounds = BuildParams.maxBounds;
+    glm::vec3 origin = BuildParams.minCorner;
+    glm::vec3 maxBounds = BuildParams.maxCorner;
     const float radius = BuildParams.agentRadius;
 
     glm::vec3 minPosition
