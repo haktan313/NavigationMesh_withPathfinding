@@ -15,9 +15,12 @@ public:
     ~NavMeshDebugger();
     void CleanBuffers();
 
-    void RenderDebugTool(Shader* shader, Camera& camera, const Scene& scene, const DrawDebugInfo& debugInfo, NavBuildParams buildParams);
+    void RenderDebugTool(Shader* shader, Camera& camera, const Scene& scene, const DrawDebugInfo& debugInfo, NavBuildParams buildParams, const
+                         HeightField& heightField);
     void RenderNavMeshBound(Shader* shader, const Scene& scene, const NavBuildParams& buildParams);
     void RenderGrids(Shader* shader, const Scene& scene, const NavBuildParams& buildParams);
+    void RenderWalkableSurfaces(Shader* shader, const Scene& scene, const NavBuildParams& buildParams, const HeightField& heightField);
+    void RenderWalkableRegions(Shader* shader, const Scene& scene, const NavBuildParams& buildParams, const HeightField& heightField);
     
     void SetBorderVertices(const std::vector<glm::vec3>& borderVerts);
     void RenderBorder(Shader* shader);

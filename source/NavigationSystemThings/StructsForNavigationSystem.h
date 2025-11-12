@@ -15,6 +15,19 @@ struct NavBuildParams
     int width, depth, height;
     std::vector<bool> data; // true = walkable, false = not walkable
 };
+struct HeightFieldSpan
+{
+    unsigned int spanMin, spanMax;
+    unsigned int areaID;
+    HeightFieldSpan* next;
+
+    unsigned int connections[4]; // Connections to neighboring spans
+};
+struct HeightField
+{
+    HeightFieldSpan** spans;
+    std::vector<HeightFieldSpan> spanPool;
+};
 
 struct NavMeshTriangle
 {

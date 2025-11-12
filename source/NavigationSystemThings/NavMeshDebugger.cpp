@@ -142,7 +142,7 @@ void NavMeshDebugger::CleanBuffers()
     m_SmoothedPathPointCount = 0;
 }
 
-void NavMeshDebugger::RenderDebugTool(Shader* shader, Camera& camera, const Scene& scene, const DrawDebugInfo& debugInfo, NavBuildParams buildParams)
+void NavMeshDebugger::RenderDebugTool(Shader* shader, Camera& camera, const Scene& scene, const DrawDebugInfo& debugInfo, NavBuildParams buildParams, const HeightField& heightField)
 {
     shader->Use();
     glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), 1280.0f/720.0f, 0.1f, 100.0f);
@@ -154,6 +154,8 @@ void NavMeshDebugger::RenderDebugTool(Shader* shader, Camera& camera, const Scen
     if (!bNavMeshBuilt)
         return;
     RenderGrids(shader, scene, buildParams);
+    //RenderWalkableSurfaces(shader, scene, buildParams, heightField);
+    //RenderWalkableRegions(shader, scene, buildParams, heightField);
     /*RenderStartEndMarkers(shader);
 
     if (debugInfo.bDrawBorder)
@@ -241,6 +243,118 @@ void NavMeshDebugger::RenderGrids(Shader* shader, const Scene& scene, const NavB
                     shader->SetVec4("ourColor", glm::vec4(0.0f, 1.0f, 0.0f, 0.03f)); // Green for empty
                 
                 glDrawElements(GL_TRIANGLES, cubeMesh->indices.size(), GL_UNSIGNED_INT, 0);
+            }
+        }
+    }
+    glDisable(GL_BLEND);
+}
+
+void NavMeshDebugger::RenderWalkableSurfaces(Shader* shader, const Scene& scene, const NavBuildParams& buildParams,
+    const HeightField& heightField)
+{
+    if (buildParams.width == 0 || heightField.spanPool.empty())
+        return;
+
+    const MeshData* cubeMesh = scene.GetMesh("Cube");
+    if (!cubeMesh || cubeMesh->VAO == 0)
+        return;
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glBindVertexArray(cubeMesh->VAO);
+
+    for (int z = 0; z < buildParams.depth; ++z)
+        for (int x = 0; x < buildParams.width; ++x)
+            for (HeightFieldSpan* span = heightField.spans[x + z * buildParams.width]; span; span = span->next)
+                for (int y = span->spanMin; y <= span->spanMax; ++y)
+                {
+                    glm::vec3 pos =
+                    {
+                        buildParams.minCorner.x + (x + 0.5f) * buildParams.cellSize,
+                        buildParams.minCorner.y + (y + 0.5f) * buildParams.cellHeight,
+                        buildParams.minCorner.z + (z + 0.5f) * buildParams.cellSize
+                    };
+                    glm::mat4 model = glm::translate(glm::mat4(1.0f), pos);
+                    model = glm::scale(model, glm::vec3(buildParams.cellSize, buildParams.cellHeight, buildParams.cellSize));
+                    shader->SetMat4("model", model);
+                    
+                    bool isWalkableSurface = (y == span->spanMax && span->areaID != 0);
+
+                    if (isWalkableSurface)
+                        shader->SetVec4("ourColor", glm::vec4(0.0f, 0.5f, 1.0f, 0.7f));
+                    else
+                        shader->SetVec4("ourColor", glm::vec4(1.0f, 0.0f, 0.0f, 0.3f));
+
+                    glDrawElements(GL_TRIANGLES, cubeMesh->indices.size(), GL_UNSIGNED_INT, 0);
+                }
+    
+    glDisable(GL_BLEND);
+}
+
+void NavMeshDebugger::RenderWalkableRegions(Shader* shader, const Scene& scene, const NavBuildParams& buildParams,
+    const HeightField& heightField)
+{
+    if (buildParams.width == 0 || heightField.spanPool.empty())
+        return;
+
+    const MeshData* cubeMesh = scene.GetMesh("Cube");
+    if (!cubeMesh || cubeMesh->VAO == 0)
+        return;
+    
+    const int numColors = 12;
+    glm::vec4 regionColors[numColors] =
+    {
+        glm::vec4(0, 0, 1, 0.7f),
+        glm::vec4(1, 1, 0, 0.7f),
+        glm::vec4(0, 1, 1, 0.7f),
+        glm::vec4(1, 0, 1, 0.7f),
+        glm::vec4(1, 0.5f, 0, 0.7f),
+        glm::vec4(0.5f, 0, 1, 0.7f),
+        glm::vec4(1, 1, 1, 0.7f),
+        glm::vec4(0.5f, 0.5f, 0.5f, 0.7f),
+        glm::vec4(0, 0.5f, 0, 0.7f),
+        glm::vec4(0.5f, 0, 0, 0.7f),
+        glm::vec4(0, 0, 0.5f, 0.7f),
+        glm::vec4(0.5f, 0.5f, 0, 0.7f)
+    };
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glBindVertexArray(cubeMesh->VAO);
+
+    const int w = buildParams.width;
+    const int d = buildParams.depth;
+
+    for (int z = 0; z < d; ++z)
+    {
+        for (int x = 0; x < w; ++x)
+        {
+            for (HeightFieldSpan* span = heightField.spans[x + z * w]; span; span = span->next)
+            {
+                if (span->areaID != 0)
+                {
+                    int y = span->spanMax;
+                    glm::vec3 pos =
+                    {
+                        buildParams.minCorner.x + (x + 0.5f) * buildParams.cellSize,
+                        buildParams.minCorner.y + (y + 0.5f) * buildParams.cellHeight,
+                        buildParams.minCorner.z + (z + 0.5f) * buildParams.cellSize
+                    };
+                    glm::mat4 model = glm::translate(glm::mat4(1.0f), pos);
+                    model = glm::scale(model, glm::vec3(buildParams.cellSize, buildParams.cellHeight, buildParams.cellSize));
+                    shader->SetMat4("model", model);
+                    
+                    unsigned int areaId = span->areaID;
+                    if (areaId > 1)
+                    { 
+                        int colorIndex = (areaId - 2) % numColors;
+                        shader->SetVec4("ourColor", regionColors[colorIndex]);
+                    }
+                    else
+                        shader->SetVec4("ourColor", glm::vec4(1.0f, 0.0f, 0.0f, 0.5f));
+                    
+                    glDrawElements(GL_TRIANGLES, cubeMesh->indices.size(), GL_UNSIGNED_INT, 0);
+                }
             }
         }
     }

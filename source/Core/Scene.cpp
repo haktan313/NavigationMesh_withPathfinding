@@ -34,7 +34,7 @@ void Scene::SetupDefaultScene()
     groundTransform2 = glm::scale(groundTransform2, glm::vec3(30.0f, 0.1f, 30.0f));
     AddObject("Ground2", "Cube", groundTransform2);*/
 
-    // Box
+    /*// Box
     glm::mat4 obstacleTransform = glm::mat4(1.0f);
     obstacleTransform = glm::translate(obstacleTransform, glm::vec3(-6.f, 2.0f, -4.0f));
     obstacleTransform = glm::scale(obstacleTransform, glm::vec3(4.0f, 4.0f, 4.0f));
@@ -44,12 +44,12 @@ void Scene::SetupDefaultScene()
     glm::mat4 obstacleTransform2 = glm::mat4(1.0f);
     obstacleTransform2 = glm::translate(obstacleTransform2, glm::vec3(5.0f, 1.0f, 7.0f));
     obstacleTransform2 = glm::scale(obstacleTransform2, glm::vec3(2.0f, 2.0f, 2.0f));
-    AddObject("Obstacle2", "Cube", obstacleTransform2);
+    AddObject("Obstacle2", "Cube", obstacleTransform2);*/
 
     // Another Box
     glm::mat4 obstacleTransform3 = glm::mat4(1.0f);
-    obstacleTransform3 = glm::translate(obstacleTransform3, glm::vec3(10.0f, 1.0f, 13.0f));
-    obstacleTransform3 = glm::scale(obstacleTransform3, glm::vec3(2.0f, 2.0f, 2.0f));
+    obstacleTransform3 = glm::translate(obstacleTransform3, glm::vec3(10.0f, 2.0f, 10.0f));
+    obstacleTransform3 = glm::scale(obstacleTransform3, glm::vec3(4.0f, 4.0f, 4.0f));
     AddObject("Obstacle3", "Cube", obstacleTransform3);
 
     // Another Box

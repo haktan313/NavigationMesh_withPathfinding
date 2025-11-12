@@ -22,6 +22,9 @@ public:
     void BuildInputTriangles(const Scene& scene);
     void VoxelizeInputTriangles();
     void Rasterization();
+    void BuildHeightField();
+    void FilterWalkableSurfaces();
+    void BuildRegions();
     void RenderDebugTool(Shader* shader, Camera& camera, const Scene& scene);
     void SetStartEndMarkers(const glm::vec3& start, const glm::vec3& end);
     
@@ -41,6 +44,7 @@ private:
     void FindNeighborsForPathfindingNodes(std::map<int, int>& faceIndexToNodeIndex);
 
     std::vector<Triangle> m_InputTriangles;
+    HeightField m_HeightField;
     
     const Scene& m_Scene;
     NavMeshDebugger* m_NavMeshDebugger;

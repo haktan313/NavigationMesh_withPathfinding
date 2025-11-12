@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <deque>
 #include <iostream>
+#include <queue>
 
 #include "FunnelPathSmoothing.h"
 #include "Pathfinder.h"
@@ -34,10 +35,14 @@ void NavMesh::BuildNavMesh()
     
     m_NavMeshDebugger->CleanBuffers();
     m_NavMeshDebugger->bNavMeshBuilt = true;
+    
     BuildInputTriangles(m_Scene);
     VoxelizeInputTriangles();
+    BuildHeightField();
+    FilterWalkableSurfaces();
+    BuildRegions();
     
-    /*const float buildPlaneY = std::min(BuildParams.origin.y, BuildParams.maxBounds.y);
+    /*const float buildPlaneY = std::min(BuildParams.minCorner.y, BuildParams.maxCorner.y);
     std::vector<std::vector<glm::vec3>> obstacleSlices = NavigationUtility::GetSceneObstacleSlices(buildPlaneY, BuildParams, m_Scene); // getting obstacle slices depending on build plane Y which is Y position of navmesh
     NavigationUtility::SortObstaclesByMaxX(obstacleSlices);
     for (const auto& slice : obstacleSlices)
@@ -181,12 +186,142 @@ void NavMesh::Rasterization()
     std::cout << "Rasterization complete. Solid voxels: " << solidVoxels << std::endl;
 }
 
+void NavMesh::BuildHeightField()
+{
+    int width = BuildParams.width;
+    int depth = BuildParams.depth;
+    int height = BuildParams.height;
+    int numColumns = width * depth;
+    
+    m_HeightField.spans = new HeightFieldSpan*[numColumns];
+    memset(m_HeightField.spans, 0, sizeof(HeightFieldSpan*) * numColumns);
+    
+    m_HeightField.spanPool.clear();
+    m_HeightField.spanPool.reserve(numColumns * height);
+
+    for (int z = 0; z < depth; ++z)
+        for (int x = 0; x < width; ++x)
+        {
+            HeightFieldSpan* previousSpan = nullptr;
+            for (int y = 0; y < height; ++y)
+            {
+                int index = x + (z * width) + (y * width * depth);
+                bool bisSolidCurrent = BuildParams.data[index];
+                
+                int previousIndex = index - (width * depth);
+                bool bisSolidPrevious = (y > 0) ? BuildParams.data[previousIndex] : false;
+                
+                if (bisSolidCurrent != bisSolidPrevious)
+                    if (bisSolidCurrent)
+                    {
+                        HeightFieldSpan newSpan;
+                        newSpan.spanMin = y;
+                        newSpan.spanMax = y;
+                        newSpan.areaID = 0;
+                        newSpan.next = nullptr;
+
+                        m_HeightField.spanPool.push_back(newSpan);
+                        HeightFieldSpan* currentSpan = &m_HeightField.spanPool.back();
+
+                        if (previousSpan)
+                            previousSpan->next = currentSpan;
+                        else
+                            m_HeightField.spans[x + z * width] = currentSpan;
+                        previousSpan = currentSpan;
+                    }
+                if (bisSolidCurrent && previousSpan)
+                    previousSpan->spanMax = y;
+            }
+        }
+
+    std::cout << "Heightfield built with " << m_HeightField.spanPool.size() << " spans." << std::endl;
+}
+
+void NavMesh::FilterWalkableSurfaces()
+{
+    const int walkableHeight = (int)ceilf(BuildParams.agentHeight / BuildParams.cellHeight);
+    for (auto& span : m_HeightField.spanPool)
+        span.areaID = 0;
+    
+    for (int z = 0; z < BuildParams.depth; ++z)
+        for (int x = 0; x < BuildParams.width; ++x)
+            for (HeightFieldSpan* span = m_HeightField.spans[x + (z * BuildParams.width)]; span; span = span->next)
+            {
+                if (span->next != nullptr)
+                    continue;
+                const int headroom = BuildParams.height - (int)span->spanMax;
+                if (headroom >= walkableHeight)
+                    span->areaID = 1;
+            }
+
+    std::cout << "Walkable surfaces filtered." << std::endl;
+}
+
+void NavMesh::BuildRegions()
+{
+    std::cout << "Building regions..." << std::endl;
+    if (BuildParams.width == 0 || BuildParams.depth == 0)
+        return;
+
+    const int walkableClimb = BuildParams.maxClimb > 0 ? (int)floorf(BuildParams.maxClimb / BuildParams.cellHeight) : 0;
+    
+    unsigned int regionId = 2;
+    
+    struct SpanLocation {
+        int x, z;
+        HeightFieldSpan* span;
+    };
+    
+    for (int z = 0; z < BuildParams.depth; ++z)
+        for (int x = 0; x < BuildParams.width; ++x)
+            for (HeightFieldSpan* span = m_HeightField.spans[x + (z * BuildParams.width)]; span; span = span->next)
+            {
+                if (span->areaID == 1)
+                {
+                    std::queue<SpanLocation> openList;
+                    openList.push({x, z, span});
+                    span->areaID = regionId;
+
+                    while (!openList.empty())
+                    {
+                        SpanLocation current = openList.front();
+                        openList.pop();
+                        
+                        for (int dir = 0; dir < 4; ++dir)
+                        {
+                            int dirX[] = {-1, 0, 1, 0};
+                            int dirZ[] = {0, -1, 0, 1};
+                            int neighborX = current.x + dirX[dir];
+                            int neighborZ = current.z + dirZ[dir];
+                            
+                            if (neighborX < 0 || neighborZ < 0 || neighborX >= BuildParams.width || neighborZ >= BuildParams.depth)
+                                continue;
+                            
+                            for (HeightFieldSpan* neighborSpan = m_HeightField.spans[neighborX + neighborZ * BuildParams.width]; neighborSpan; neighborSpan = neighborSpan->next)
+                                if (neighborSpan->areaID == 1)
+                                {
+                                    const int heightDiff = abs((int)current.span->spanMax - (int)neighborSpan->spanMax);
+                                    if (heightDiff <= walkableClimb)
+                                    {
+                                        neighborSpan->areaID = regionId;
+                                        openList.push({neighborX, neighborZ, neighborSpan});
+                                    }
+                                }
+                        }
+                    }
+                    regionId++;
+                }
+            }
+
+    std::cout << "Regions built. Total regions found: " << regionId - 2 << std::endl;
+}
+
 //----- Render the debug tool -----
 
 void NavMesh::RenderDebugTool(Shader* shader, Camera& camera, const Scene& scene)
 {
     if (m_NavMeshDebugger)
-        m_NavMeshDebugger->RenderDebugTool(shader, camera, scene, DebugInfo, BuildParams);
+        m_NavMeshDebugger->RenderDebugTool(shader, camera, scene, DebugInfo, BuildParams, m_HeightField);
     
 }
 
