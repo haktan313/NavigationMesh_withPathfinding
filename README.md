@@ -1,5 +1,6 @@
 # Navigation Mesh System With Pathfinding
 
+Custom Navigation Mesh and pathfinding system written in C++. The project builds a navmesh from raw geometry using ear clipping triangulation, optimizes polygons with the HertelMehlhorn algorithm, and performs A* pathfinding with Simple Stupid Funnel smoothing.
 This is the first step of my custom **Navigation Mesh** system, which also includes a **Pathfinding algorithm**. For now, it doesn’t have **heightfields**, but my next goal is to implement it.
 <img width="2548" height="1387" alt="bothpath" src="https://github.com/user-attachments/assets/8a39fe28-766e-4ef3-872b-8a5ad703af32" />
 - For cloning repo `git clone https://github.com/haktan313/NavigationmeshSystem.git`
